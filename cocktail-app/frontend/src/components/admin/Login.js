@@ -1,61 +1,34 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useAuth } from '../../features/auth/AuthContext';
+import { getApiErrorMessage } from '../../api/http';
 
-function Login({ onLoginSuccess }) {
-  const [formData, setFormData] = useState({ username: '', password: '' });
+export default function Login({ onCancel }) {
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  async function submit(event) {
+    event.preventDefault();
     setError('');
-    console.log('Intentando login con:', formData);
-    try {
-      const params = new URLSearchParams();
-      params.append('username', formData.username);
-      params.append('password', formData.password);
-
-      const response = await axios.post('http://127.0.0.1:8000/token', params, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      });
-      
-      console.log('Respuesta recibida:', response.data);
-      localStorage.setItem('token', response.data.access_token);
-      onLoginSuccess();
-    } catch (err) {
-      console.error('Error detallado del login:', err.response || err);
-      setError(err.response?.data?.detail || 'Error de conexión con el servidor');
-    }
-  };
+    setBusy(true);
+    try { await login({ username, password }); }
+    catch (err) { setError(getApiErrorMessage(err, 'No se pudo iniciar sesión.')); }
+    finally { setBusy(false); }
+  }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h2>Acceso Administrador</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Usuario</label>
-            <input 
-              type="text" 
-              value={formData.username} 
-              onChange={e => setFormData({...formData, username: e.target.value})} 
-              required 
-            />
-          </div>
-          <div className="form-group">
-            <label>Contraseña</label>
-            <input 
-              type="password" 
-              value={formData.password} 
-              onChange={e => setFormData({...formData, password: e.target.value})} 
-              required 
-            />
-          </div>
-          {error && <p className="error-msg">{error}</p>}
-          <button type="submit" className="btn-login">Entrar</button>
-        </form>
-      </div>
-    </div>
+    <section className="auth-card" aria-labelledby="login-title">
+      <h2 id="login-title">Iniciar sesión</h2>
+      <p>Accede a tu cuenta o al panel del equipo.</p>
+      <form onSubmit={submit}>
+        <label>Usuario<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required /></label>
+        <label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+        {error && <p className="error-msg" role="alert">{error}</p>}
+        <button className="button button-primary" disabled={busy}>{busy ? 'Ingresando…' : 'Entrar'}</button>
+        {onCancel && <button className="button button-quiet" type="button" onClick={onCancel}>Volver</button>}
+      </form>
+    </section>
   );
 }
-
-export default Login;
